@@ -4,8 +4,10 @@ from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
+# Permite que cualquier navegador consulte la API (Fundamental para la web)
 CORS(app)
 
+# Cabeceras para simular que somos el navegador oficial y no ser bloqueados por SIUR
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -13,6 +15,9 @@ HEADERS = {
     'Referer': 'https://servicios.siur.com.co/buscarutas/'
 }
 
+# ==========================================
+# ENDPOINT 1: OBTENER BUSES EN MOVIMIENTO
+# ==========================================
 @app.route('/api/buses/<ruta>')
 def obtener_buses(ruta):
     ruta_clean = ruta.upper()
@@ -32,14 +37,14 @@ def obtener_buses(ruta):
 
                     if lat_val != 0 and lng_val != 0:
                         buses_procesados.append({
-                            # Campos esenciales para que funcione el frontend actual
+                            # Datos principales
                             "id": bus.get('numeroBus', 'MIO'),
                             "lat": lat_val,
                             "lng": lng_val,
                             "origen": bus.get('paradaInicial', 'Desconocido'),
                             "destino": bus.get('paradaFinal', 'Desconocido'),
                             
-                            # Toda la nueva información extraída directamente de SIUR
+                            # Datos técnicos adicionales
                             "tarea": bus.get('tarea', 'N/A'),
                             "viaje": bus.get('viaje', 'N/A'),
                             "nombreLinea": bus.get('nombreLinea', ruta_clean)
@@ -56,6 +61,36 @@ def obtener_buses(ruta):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ==========================================
+# ENDPOINT 2: OBTENER TRAZADO DEL RECORRIDO
+# ==========================================
+@app.route('/api/recorrido/<ruta>')
+def obtener_recorrido(ruta):
+    ruta_clean = ruta.upper()
+    url = "https://servicios.siur.com.co/buscarutas/api/recorrido.php"
+    
+    try:
+        response = requests.get(url, params={'linea': ruta_clean}, headers=HEADERS, timeout=8)
+        
+        if response.status_code == 200:
+            # SIUR normalmente devuelve una lista de coordenadas para pintar la línea
+            datos_recorrido = response.json()
+            
+            return jsonify({
+                "status": "ok",
+                "ruta": ruta_clean,
+                "puntos": datos_recorrido
+            })
+        
+        return jsonify({"status": "error", "message": f"HTTP {response.status_code}"}), response.status_code
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ==========================================
+# INICIO DEL SERVIDOR
+# ==========================================
 if __name__ == '__main__':
+    # Usamos el puerto asignado por Render o el 5000 por defecto en local
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
