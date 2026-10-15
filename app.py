@@ -73,9 +73,7 @@ def obtener_recorrido(ruta):
         response = requests.get(url, params={'linea': ruta_clean}, headers=HEADERS, timeout=8)
         
         if response.status_code == 200:
-            # SIUR normalmente devuelve una lista de coordenadas para pintar la línea
             datos_recorrido = response.json()
-            
             return jsonify({
                 "status": "ok",
                 "ruta": ruta_clean,
@@ -88,9 +86,43 @@ def obtener_recorrido(ruta):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
+# ENDPOINT 3: OBTENER PARADAS / ESTACIONES
+# ==========================================
+@app.route('/api/paradas/<ruta>')
+def obtener_paradas(ruta):
+    ruta_clean = ruta.upper()
+    url = "https://servicios.siur.com.co/buscarutas/api/paradas.php"
+    
+    try:
+        response = requests.get(url, params={'linea': ruta_clean}, headers=HEADERS, timeout=8)
+        
+        if response.status_code == 200:
+            raw_paradas = response.json()
+            paradas_procesadas = []
+
+            if isinstance(raw_paradas, list):
+                for parada in raw_paradas:
+                    paradas_procesadas.append({
+                        "id": parada.get("id"),
+                        "lat": float(parada.get("latitud", 0)),
+                        "lng": float(parada.get("longitud", 0)),
+                        "nombre": parada.get("nombre", "Parada sin nombre")
+                    })
+
+            return jsonify({
+                "status": "ok",
+                "ruta": ruta_clean,
+                "paradas": paradas_procesadas
+            })
+        
+        return jsonify({"status": "error", "message": f"HTTP {response.status_code}"}), response.status_code
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ==========================================
 # INICIO DEL SERVIDOR
 # ==========================================
 if __name__ == '__main__':
-    # Usamos el puerto asignado por Render o el 5000 por defecto en local
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
