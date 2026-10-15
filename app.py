@@ -111,21 +111,20 @@ def obtener_paradas(ruta):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
-# ENDPOINT 4: TIEMPO DE LLEGADA DE BUSES (NUEVO)
+# ENDPOINT 4: TIEMPO DE LLEGADA DE BUSES
 # ==========================================
-@app.route('/api/llegadas/<id_parada>')
-def obtener_llegadas(id_parada):
+@app.route('/api/llegadas/<path:nombre_parada>')
+def obtener_llegadas(nombre_parada):
     url = "https://servicios.siur.com.co/buscarutas/api/buses_proximos_a_llegar.php"
     
     try:
-        # SIUR probablemente usa "id" o "id_parada" para consultar la estación específica
-        response = requests.get(url, params={'id': id_parada}, headers=HEADERS, timeout=8)
+        # Enviamos el nombre de la parada en lugar del ID
+        response = requests.get(url, params={'nombreParada': nombre_parada}, headers=HEADERS, timeout=8)
         
         if response.status_code == 200:
-            # Devolvemos exactamente la información de tiempos que descubriste
             return jsonify({
                 "status": "ok",
-                "parada_id": id_parada,
+                "parada": nombre_parada,
                 "datos": response.json()
             })
             
