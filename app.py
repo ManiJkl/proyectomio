@@ -13,7 +13,6 @@ HEADERS = {
     'Referer': 'https://servicios.siur.com.co/buscarutas/'
 }
 
-# Tabla de cabeceras/destinos oficiales para tus rutas frecuentes
 CABECERAS_RUTAS = {
     "T12": {
         1: {"origen": "Terminal Menga C2", "destino": "Universidades B1"},
@@ -39,12 +38,7 @@ def obtener_buses(ruta):
     url = "https://servicios.siur.com.co/buscarutas/api/buses.php"
     
     try:
-        response = requests.get(
-            url,
-            params={'linea': ruta_clean},
-            headers=HEADERS,
-            timeout=8
-        )
+        response = requests.get(url, params={'linea': ruta_clean}, headers=HEADERS, timeout=8)
         
         if response.status_code == 200:
             raw_buses = response.json()
@@ -55,20 +49,19 @@ def obtener_buses(ruta):
                     lat_val = float(bus.get('latitud') or bus.get('lat') or 0)
                     lng_val = float(bus.get('longitud') or bus.get('lng') or bus.get('lon') or 0)
 
-                    # 1. Intentar obtener origen/destino directos si la API de SIUR los trae
+                    # 1. Intentar obtener origen/destino directos
                     origen = bus.get('origen') or bus.get('paradaOrigen') or bus.get('cabeceraOrigen')
                     destino = bus.get('destino') or bus.get('paradaDestino') or bus.get('cabeceraDestino')
 
-                    # 2. Si SIUR no trae origen/destino explícitos, usar el sentido mapeado
+                    # 2. Asignación por sentido
                     if not origen or not destino:
                         sentido_raw = str(bus.get('sentido') or bus.get('orientacion') or '1')
                         
-                        # Determinar si es sentido 1 (Sur/Ida) o 2 (Norte/Vuelta)
                         sentido_num = 1
                         if sentido_raw in ['2', '2.0', 'N', 'NORTE', 'V']:
                             sentido_num = 2
-                        elif lat_val > 0 and lat_val > 3.42:  # Apoyo por posición geográfica en Cali
-                            sentido_num = 1  # Si está muy al norte, baja hacia el sur
+                        elif lat_val > 0 and lat_val > 3.42: 
+                            sentido_num = 1 
 
                         cabecera_info = CABECERAS_RUTAS.get(ruta_clean, {}).get(
                             sentido_num, 
@@ -96,6 +89,28 @@ def obtener_buses(ruta):
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# NUEVA RUTA DE DEPURACIÓN
+@app.route('/api/debug/<ruta>')
+def debug_buses(ruta):
+    url = "https://servicios.siur.com.co/buscarutas/api/buses.php"
+    try:
+        response = requests.get(
+            url,
+            params={'linea': ruta.upper()},
+            headers=HEADERS,
+            timeout=8
+        )
+        if response.status_code == 200:
+            raw_buses = response.json()
+            if isinstance(raw_buses, list) and len(raw_buses) > 0:
+                return jsonify({
+                    "mensaje": "Datos crudos de SIUR (Copia esto y envíamelo)",
+                    "bus_crudo": raw_buses[0]
+                })
+            return jsonify({"mensaje": "No hay buses en este momento para la ruta solicitada"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
