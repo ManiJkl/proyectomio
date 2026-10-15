@@ -37,14 +37,11 @@ def obtener_buses(ruta):
 
                     if lat_val != 0 and lng_val != 0:
                         buses_procesados.append({
-                            # Datos principales
                             "id": bus.get('numeroBus', 'MIO'),
                             "lat": lat_val,
                             "lng": lng_val,
                             "origen": bus.get('paradaInicial', 'Desconocido'),
                             "destino": bus.get('paradaFinal', 'Desconocido'),
-                            
-                            # Datos técnicos adicionales
                             "tarea": bus.get('tarea', 'N/A'),
                             "viaje": bus.get('viaje', 'N/A'),
                             "nombreLinea": bus.get('nombreLinea', ruta_clean)
@@ -71,17 +68,13 @@ def obtener_recorrido(ruta):
     
     try:
         response = requests.get(url, params={'linea': ruta_clean}, headers=HEADERS, timeout=8)
-        
         if response.status_code == 200:
-            datos_recorrido = response.json()
             return jsonify({
                 "status": "ok",
                 "ruta": ruta_clean,
-                "puntos": datos_recorrido
+                "puntos": response.json()
             })
-        
         return jsonify({"status": "error", "message": f"HTTP {response.status_code}"}), response.status_code
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -95,7 +88,6 @@ def obtener_paradas(ruta):
     
     try:
         response = requests.get(url, params={'linea': ruta_clean}, headers=HEADERS, timeout=8)
-        
         if response.status_code == 200:
             raw_paradas = response.json()
             paradas_procesadas = []
@@ -114,7 +106,29 @@ def obtener_paradas(ruta):
                 "ruta": ruta_clean,
                 "paradas": paradas_procesadas
             })
+        return jsonify({"status": "error", "message": f"HTTP {response.status_code}"}), response.status_code
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ==========================================
+# ENDPOINT 4: TIEMPO DE LLEGADA DE BUSES (NUEVO)
+# ==========================================
+@app.route('/api/llegadas/<id_parada>')
+def obtener_llegadas(id_parada):
+    url = "https://servicios.siur.com.co/buscarutas/api/buses_proximos_a_llegar.php"
+    
+    try:
+        # SIUR probablemente usa "id" o "id_parada" para consultar la estación específica
+        response = requests.get(url, params={'id': id_parada}, headers=HEADERS, timeout=8)
         
+        if response.status_code == 200:
+            # Devolvemos exactamente la información de tiempos que descubriste
+            return jsonify({
+                "status": "ok",
+                "parada_id": id_parada,
+                "datos": response.json()
+            })
+            
         return jsonify({"status": "error", "message": f"HTTP {response.status_code}"}), response.status_code
 
     except Exception as e:
