@@ -27,18 +27,22 @@ def obtener_buses(ruta):
 
             if isinstance(raw_buses, list):
                 for bus in raw_buses:
-                    # Extraer latitud y longitud asegurando que sean números
                     lat_val = float(bus.get('latitud', 0))
                     lng_val = float(bus.get('longitud', 0))
 
-                    # Si el bus tiene coordenadas válidas, lo procesamos con los nombres exactos que descubriste
                     if lat_val != 0 and lng_val != 0:
                         buses_procesados.append({
+                            # Campos esenciales para que funcione el frontend actual
                             "id": bus.get('numeroBus', 'MIO'),
                             "lat": lat_val,
                             "lng": lng_val,
                             "origen": bus.get('paradaInicial', 'Desconocido'),
-                            "destino": bus.get('paradaFinal', 'Desconocido')
+                            "destino": bus.get('paradaFinal', 'Desconocido'),
+                            
+                            # Toda la nueva información extraída directamente de SIUR
+                            "tarea": bus.get('tarea', 'N/A'),
+                            "viaje": bus.get('viaje', 'N/A'),
+                            "nombreLinea": bus.get('nombreLinea', ruta_clean)
                         })
 
             return jsonify({
