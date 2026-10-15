@@ -13,14 +13,35 @@ HEADERS = {
     'Referer': 'https://servicios.siur.com.co/buscarutas/'
 }
 
+# Tabla de cabeceras/destinos oficiales para tus rutas frecuentes
+CABECERAS_RUTAS = {
+    "T12": {
+        1: {"origen": "Terminal Menga C2", "destino": "Universidades B1"},
+        2: {"origen": "Universidades B1", "destino": "Terminal Menga C2"}
+    },
+    "P40B": {
+        1: {"origen": "Terminal Andrés Sanín", "destino": "Sena / Centro / Cañaveralejo"},
+        2: {"origen": "Cañaveralejo / Centro", "destino": "Terminal Andrés Sanín"}
+    },
+    "A11": {
+        1: {"origen": "Estación Universidades", "destino": "Univ. Javeriana / Icesi"},
+        2: {"origen": "Univ. Icesi / Javeriana", "destino": "Estación Universidades"}
+    },
+    "A14A": {
+        1: {"origen": "Estación Universidades", "destino": "Univ. del Valle (San Fernando/Meléndez)"},
+        2: {"origen": "Univ. del Valle", "destino": "Estación Universidades"}
+    }
+}
+
 @app.route('/api/buses/<ruta>')
 def obtener_buses(ruta):
+    ruta_clean = ruta.upper()
     url = "https://servicios.siur.com.co/buscarutas/api/buses.php"
     
     try:
         response = requests.get(
             url,
-            params={'linea': ruta.upper()},
+            params={'linea': ruta_clean},
             headers=HEADERS,
             timeout=8
         )
@@ -31,38 +52,43 @@ def obtener_buses(ruta):
 
             if isinstance(raw_buses, list):
                 for bus in raw_buses:
-                    # Extraer sentido / rumbo original
-                    sentido_raw = bus.get('sentido') or bus.get('orientacion') or bus.get('dir')
-                    rumbo_raw = bus.get('rumbo') or bus.get('bearing') or bus.get('heading')
+                    lat_val = float(bus.get('latitud') or bus.get('lat') or 0)
+                    lng_val = float(bus.get('longitud') or bus.get('lng') or bus.get('lon') or 0)
 
-                    # Mapeo de orientación legible para Cali (Eje Norte-Sur)
-                    sentido_texto = "Desconocido"
-                    if sentido_raw in [1, "1", "S", "SUR"]:
-                        sentido_texto = "Sentido Sur (ej. hacia Universidades/Capri)"
-                    elif sentido_raw in [2, "2", "N", "NORTE"]:
-                        sentido_texto = "Sentido Norte (ej. hacia Menga/Paso del Comercio)"
-                    elif rumbo_raw is not None:
-                        try:
-                            rumbo = float(rumbo_raw)
-                            # 90° a 270° generalmente apunta hacia el Sur en Cali
-                            if 90 <= rumbo <= 270:
-                                sentido_texto = "Hacia el Sur"
-                            else:
-                                sentido_texto = "Hacia el Norte"
-                        except ValueError:
-                            pass
+                    # 1. Intentar obtener origen/destino directos si la API de SIUR los trae
+                    origen = bus.get('origen') or bus.get('paradaOrigen') or bus.get('cabeceraOrigen')
+                    destino = bus.get('destino') or bus.get('paradaDestino') or bus.get('cabeceraDestino')
+
+                    # 2. Si SIUR no trae origen/destino explícitos, usar el sentido mapeado
+                    if not origen or not destino:
+                        sentido_raw = str(bus.get('sentido') or bus.get('orientacion') or '1')
+                        
+                        # Determinar si es sentido 1 (Sur/Ida) o 2 (Norte/Vuelta)
+                        sentido_num = 1
+                        if sentido_raw in ['2', '2.0', 'N', 'NORTE', 'V']:
+                            sentido_num = 2
+                        elif lat_val > 0 and lat_val > 3.42:  # Apoyo por posición geográfica en Cali
+                            sentido_num = 1  # Si está muy al norte, baja hacia el sur
+
+                        cabecera_info = CABECERAS_RUTAS.get(ruta_clean, {}).get(
+                            sentido_num, 
+                            {"origen": "Cabecera A", "destino": "Cabecera B"}
+                        )
+                        
+                        origen = origen or cabecera_info["origen"]
+                        destino = destino or cabecera_info["destino"]
 
                     buses_procesados.append({
-                        "id": bus.get('idVehiculo') or bus.get('bus') or bus.get('codigo') or 'MIO',
-                        "lat": bus.get('latitud') or bus.get('lat'),
-                        "lng": bus.get('longitud') or bus.get('lng') or bus.get('lon'),
-                        "sentido": sentido_texto,
-                        "rumbo": rumbo_raw
+                        "id": str(bus.get('idVehiculo') or bus.get('bus') or bus.get('codigo') or 'MIO'),
+                        "lat": lat_val,
+                        "lng": lng_val,
+                        "origen": origen,
+                        "destino": destino
                     })
 
             return jsonify({
                 "status": "ok",
-                "ruta": ruta.upper(),
+                "ruta": ruta_clean,
                 "buses": buses_procesados
             })
         
