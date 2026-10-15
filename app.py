@@ -113,18 +113,18 @@ def obtener_paradas(ruta):
 # ==========================================
 # ENDPOINT 4: TIEMPO DE LLEGADA DE BUSES
 # ==========================================
-@app.route('/api/llegadas/<path:nombre_parada>')
-def obtener_llegadas(nombre_parada):
+@app.route('/api/llegadas/<id_parada>')
+def obtener_llegadas(id_parada):
     url = "https://servicios.siur.com.co/buscarutas/api/buses_proximos_a_llegar.php"
     
     try:
-        # Enviamos el nombre de la parada en lugar del ID
-        response = requests.get(url, params={'nombreParada': nombre_parada}, headers=HEADERS, timeout=8)
+        # El parámetro exacto que descubriste: 'parada'
+        response = requests.get(url, params={'parada': id_parada}, headers=HEADERS, timeout=8)
         
         if response.status_code == 200:
             return jsonify({
                 "status": "ok",
-                "parada": nombre_parada,
+                "parada_id": id_parada,
                 "datos": response.json()
             })
             
