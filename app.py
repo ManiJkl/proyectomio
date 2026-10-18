@@ -134,6 +134,13 @@ def obtener_llegadas(id_parada):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
+# ENDPOINT PARA MANTENER DESPIERTO EL SERVIDOR
+# ==========================================
+@app.route('/ping')
+def ping():
+    return "ok", 200
+
+# ==========================================
 # INICIO DEL SERVIDOR
 # ==========================================
 if __name__ == '__main__':
