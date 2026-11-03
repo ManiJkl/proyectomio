@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 import requests
+from push import init_push
 
 app = Flask(__name__)
 # Permite que cualquier navegador consulte la API (Fundamental para la web)
@@ -132,6 +133,18 @@ def obtener_llegadas(id_parada):
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# ==========================================
+# AVISOS PUSH (bus cerca de llegar)
+# ==========================================
+def buses_de_parada(id_parada):
+    url = "https://servicios.siur.com.co/buscarutas/api/buses_proximos_a_llegar.php"
+    response = requests.get(url, params={'parada': id_parada}, headers=HEADERS, timeout=8)
+    response.raise_for_status()
+    datos = response.json()
+    return datos.get('buses', []) if isinstance(datos, dict) else []
+
+init_push(app, buses_de_parada)
 
 # ==========================================
 # ENDPOINT PARA MANTENER DESPIERTO EL SERVIDOR
